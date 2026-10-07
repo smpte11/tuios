@@ -802,6 +802,12 @@ pane it was cut from, so a `pane.swap` or `pane.neighbor` right after it
 reads the new layout. A split that ran never makes a second pane: if the new
 pane is late, the answer is `pane_split_failed`.
 
+A pane's `foreground_cwd` is the directory of the leader of its foreground
+process group, the process `pane.process_info` lists first, as in herdr. It
+falls back to the pane's `cwd` (the shell's directory) where tuios cannot read
+that process: a pane on a linked host, a platform with no answer, or a pane with
+no foreground group. `cwd` stays the shell's directory.
+
 `pane.send_text` takes off the bracketed paste markers that a tool puts
 around its own text (terminal-browser does for text of several lines). The
 paste then puts its own markers on when the program in the pane wants them.

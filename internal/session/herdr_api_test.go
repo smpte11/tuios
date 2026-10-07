@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"net"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -570,5 +571,39 @@ func TestHerdrEventsWaitMatchesAStatus(t *testing.T) {
 	reply := herdrDial(t, sp, "events.wait", map[string]any{"match_event": map[string]any{"event": "tab_created"}})
 	if code := herdrCode(reply); code != "unsupported_event_wait_match" {
 		t.Errorf("a tab_created wait answered %q", code)
+	}
+}
+
+func TestHerdrForegroundCwdFollowsTheForegroundProcess(t *testing.T) {
+	d, sp := startTestDaemon(t)
+	sess, err := d.manager.CreateSession("fg", &SessionConfig{}, 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	other := t.TempDir()
+	win, err := sess.AddDaemonWindowWith(NewWindowOptions{Command: []string{"sh", "-i"}, Cwd: dir}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pane := herdrPaneID(sess.ID, win.ID)
+	herdrOK(t, "send_text", herdrDial(t, sp, "pane.send_text", map[string]any{"pane_id": pane, "text": "(cd " + other + " && exec sleep 60)"}))
+	herdrOK(t, "send_keys", herdrDial(t, sp, "pane.send_keys", map[string]any{"pane_id": pane, "keys": []string{"Enter"}}))
+	wantFG, _ := filepath.EvalSymlinks(other)
+	wantCwd, _ := filepath.EvalSymlinks(dir)
+	deadline := time.Now().Add(10 * time.Second)
+	var got map[string]any
+	for time.Now().Before(deadline) {
+		got = herdrOK(t, "pane.get", herdrDial(t, sp, "pane.get", map[string]any{"pane_id": pane}))["pane"].(map[string]any)
+		if fg, _ := got["foreground_cwd"].(string); fg == wantFG {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if got["foreground_cwd"] != wantFG {
+		t.Errorf("foreground_cwd = %v, want %s", got["foreground_cwd"], wantFG)
+	}
+	if got["cwd"] != wantCwd {
+		t.Errorf("cwd = %v, want the shell cwd %s", got["cwd"], wantCwd)
 	}
 }

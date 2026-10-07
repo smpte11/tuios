@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Gaurav-Gosain/tuios/internal/gitstate"
+	"github.com/Gaurav-Gosain/tuios/internal/ptyspawn"
 )
 
 // herdr's records of tuios's objects: the shapes of herdr's
@@ -485,6 +486,9 @@ func (d *Daemon) herdrPaneRecord(sess *Session, st *SessionState, win *WindowSta
 				p.Cwd, p.ForegroundCwd = cwd, cwd
 			}
 		}
+		if cwd, ok := pty.foregroundCwd(); ok {
+			p.ForegroundCwd = cwd
+		}
 		rev, back, rows := pty.herdrFacts()
 		p.Revision = rev
 		p.Scroll = &herdrScroll{MaxOffsetFromBottom: uint64(back), ViewportRows: uint64(rows)}
@@ -577,4 +581,22 @@ func herdrCheckoutOf(dir string) *herdrWorkspaceWorktree {
 		RepoKey: repoRoot, RepoName: filepath.Base(repoRoot), RepoRoot: repoRoot,
 		CheckoutPath: root, IsLinkedWorktree: gitdir != common,
 	}
+}
+
+// foregroundCwd is the directory of the pane's foreground process group
+// leader, the process pane.process_info lists first. It is false for a pane
+// on another machine, a platform with no answer, or a pane with no shell.
+func (p *PTY) foregroundCwd() (string, bool) {
+	if _, remote := p.pty.(*remotePane); remote {
+		return "", false
+	}
+	shell := p.ShellPID()
+	if shell <= 0 {
+		return "", false
+	}
+	pgid, ok := readForegroundPGID(shell)
+	if !ok || pgid <= 0 {
+		return "", false
+	}
+	return ptyspawn.ProcessCwd(pgid)
 }
