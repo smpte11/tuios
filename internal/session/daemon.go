@@ -1140,6 +1140,10 @@ func (d *Daemon) onSessionCreated(s *Session) {
 			}
 			return
 		}
+		if ev.Type == EventWindowExit && ev.Window != "" && s.inHerdrTab(ev.Window) {
+			window := ev.Window
+			d.goTracked(func() { _, _ = s.CloseDaemonWindow(window) })
+		}
 		if ev.Type == EventOutput && d.agentsOff.Load() {
 			// The agent features are off: the pane's directory is still
 			// followed, and nothing on it is read for an agent. A report the

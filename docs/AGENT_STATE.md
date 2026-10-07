@@ -675,7 +675,7 @@ A refused call answers error `forbidden`, and nothing changes.
 | `workspace.close` | `kill-session` | |
 | `workspace.focus` | `select-workspace` grant, then the attached client | the client shows the session, as the session switcher does. The client is the one that shows the caller's session, else the one that shows the active workspace. Without a client it fails with `no_client` |
 | `tab.list`, `tab.get` | `list-windows` | |
-| `tab.create` | `new-window`, `set-workspace-name` | uses the first workspace that is not a tab. Fails with `tab_create_failed` when all are in use |
+| `tab.create` | `new-window`, `set-workspace-name` | uses the first workspace that is not a tab. Fails with `tab_create_failed` when all are in use. The tab closes with its last pane, see [Where tuios differs from herdr](#where-tuios-differs-from-herdr) |
 | `tab.rename` | `set-workspace-name` | |
 | `tab.focus` | `select-workspace` | |
 | `tab.move` | `set-workspace-order` | renumbers the workspaces to the new tab order: the tabs take the workspace numbers they hold between them. Every tab keeps its id |
@@ -688,7 +688,7 @@ A refused call answers error `forbidden`, and nothing changes.
 | `pane.rename` | `set-window` | `label: null` clears the name |
 | `pane.focus`, `agent.focus` | `focus-window` | |
 | `pane.split` | `split-window`, else `new-window` | without an attached client, or with `cwd`, the new pane is a window on the same workspace |
-| `pane.close` | `close-window` | |
+| `pane.close` | `close-window` | the last pane of a tab that herdr opened closes the tab. See [Where tuios differs from herdr](#where-tuios-differs-from-herdr) |
 | `pane.wait_for_output` | `wait-for window-output` | |
 | `pane.process_info` | `list-windows` | the pane's shell, and the processes in its foreground process group: pid and name. argv, the command line and the directory are given to you, to the pane itself, and to a pane that holds `write` on the pane's session or `admin`. A pane with `read` only gets the pid and the name, because arguments can carry secrets that never show on the screen. `tty` is not given |
 | `pane.neighbor`, `pane.edges` | `list-windows` | from the pane rectangles of the tab's layout. See [Where tuios differs from herdr](#where-tuios-differs-from-herdr) |
@@ -801,6 +801,19 @@ one step, and the answer comes when the session's state shows the zoom.
 pane it was cut from, so a `pane.swap` or `pane.neighbor` right after it
 reads the new layout. A split that ran never makes a second pane: if the new
 pane is late, the answer is `pane_split_failed`.
+
+herdr closes a tab when its last pane closes, and when the process of its last
+pane exits, and tuios keeps a workspace as a fixed slot. So the daemon closes
+the tabs that herdr's methods opened (`tab.create`, and `pane.move` to a new
+tab): when the last pane of one closes, or its process exits, the tab loses
+its label, the session shows another tab if this one was showing, and the slot
+is free for the next `tab.create`. A pane of such a tab whose process exits is
+closed, as herdr does, with or without a client attached. A workspace that you
+opened or named in tuios, and a tab that herdr did not open (a new session's
+first tab), are never closed this way. herdr also closes the workspace when
+its last tab closes. tuios does not end a session when a pane closes, so the
+last tab of a session stays, with no pane. A daemon restart forgets which tabs
+herdr opened.
 
 `pane.send_text` takes off the bracketed paste markers that a tool puts
 around its own text (terminal-browser does for text of several lines). The

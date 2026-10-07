@@ -40,6 +40,11 @@ answer, such as `layout.apply` or `workspace.move`, fails with code
 `plugin install`, `server stop` and the rest) fails with code `unsupported`
 and does nothing.
 
+A tab that `tab create` (or `pane move` to a new tab) opened closes when its
+last pane closes or its process exits, as in herdr, and its slot is free for
+the next `tab create`. A workspace made or named in tuios is never closed this
+way, and neither is a session's last tab: it stays with no pane.
+
 ## herdr plugins
 
 tuios runs herdr plugins (`herdr-plugin.toml`) that the person enabled. From
