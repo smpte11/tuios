@@ -304,6 +304,9 @@ func (d *Daemon) herdrPaneMove(cs *connState, in *herdrIn) (*herdrResult, *herdr
 		if across {
 			paneID = herdrPaneID(to.ID, site.win.ID)
 		}
+		if dest.Type == "new_tab" {
+			to.MarkHerdrTab(ws)
+		}
 		if in.Focus {
 			if _, herr := d.herdrFocusPane(cs, paneID); herr != nil {
 				return nil, herr
