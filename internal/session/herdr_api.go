@@ -715,6 +715,7 @@ func (d *Daemon) herdrTabCreate(cs *connState, in *herdrIn) (*herdrResult, *herd
 		}
 		return nil, herr
 	}
+	sess.MarkHerdrTab(ws)
 	if in.Focus {
 		if _, herr := d.herdrVerb(cs, "select-workspace", herdrArgs{Session: sess.Name(), Workspace: ws}, fail); herr != nil {
 			return nil, herr

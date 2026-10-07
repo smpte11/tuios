@@ -32,6 +32,11 @@ error prints the answer on stderr and exits 1. A wrong command line prints
 the usage on stderr and exits 2. `pane send-text`, `pane send-keys`, `pane
 run` and the report commands print nothing when they succeed.
 
+The global `--session NAME` is accepted anywhere before a `--` and ignored,
+as in herdr, but only for `default`, the one session tuios has. Any other
+name fails with exit 2 and sends nothing. Words after `--` are never read as
+the flag.
+
 It answers `pane`, `tab`, `workspace`, `agent`, `worktree`,
 `notification show`, `api snapshot`, `server reload-config`, `terminal
 title`, `status`, `session list` and `plugin`. A method that tuios does not
@@ -39,6 +44,11 @@ answer, such as `layout.apply` or `workspace.move`, fails with code
 `unsupported`. A command that acts on herdr's own machine (`session stop`,
 `plugin install`, `server stop` and the rest) fails with code `unsupported`
 and does nothing.
+
+A tab that `tab create` (or `pane move` to a new tab) opened closes when its
+last pane closes or its process exits, as in herdr, and its slot is free for
+the next `tab create`. A workspace made or named in tuios is never closed this
+way, and neither is a session's last tab: it stays with no pane.
 
 ## herdr plugins
 
