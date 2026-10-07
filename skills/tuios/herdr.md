@@ -32,6 +32,11 @@ error prints the answer on stderr and exits 1. A wrong command line prints
 the usage on stderr and exits 2. `pane send-text`, `pane send-keys`, `pane
 run` and the report commands print nothing when they succeed.
 
+The global `--session NAME` is accepted anywhere before a `--` and ignored,
+as in herdr, but only for `default`, the one session tuios has. Any other
+name fails with exit 2 and sends nothing. Words after `--` are never read as
+the flag.
+
 It answers `pane`, `tab`, `workspace`, `agent`, `worktree`,
 `notification show`, `api snapshot`, `server reload-config`, `terminal
 title`, `status`, `session list` and `plugin`. A method that tuios does not

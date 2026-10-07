@@ -489,6 +489,13 @@ nothing when they succeed. `pane read` and `agent read` print the text read.
 it does not. `--json` gives the same in herdr's JSON. `endpoint_compatible`
 is always false, because tuios does not serve herdr's client protocol.
 `herdr session list` names one session, `default`, at the herdr socket.
+Like herdr, the front takes the global `--session NAME` (or `--session=NAME`)
+out of the command line wherever it stands before a `--`, so `herdr pane
+send-text --session default w1:p1 hi` types `hi`. Words after `--` are never
+touched. tuios runs one daemon, so `default` is the only session it answers
+for. Any other name fails with a usage error that names it (exit 2) and
+sends nothing. A name herdr would refuse, or a `--session` with no value,
+fails with herdr's message.
 
 The daemon makes the link when it starts, beside its socket:
 `$XDG_RUNTIME_DIR/tuios/herdr/bin/herdr`, or `/tmp/tuios-<uid>/herdr/bin/herdr`

@@ -84,6 +84,10 @@ type Env func(string) string
 // Parse reads a herdr command line, without the program name. cwd is the
 // directory relative worktree paths are taken from.
 func Parse(args []string, getenv Env, cwd string) (*Call, *UsageError) {
+	args, uerr := stripSessionFlag(args)
+	if uerr != nil {
+		return nil, uerr
+	}
 	if len(args) == 0 {
 		return nil, usage("this herdr is tuios's front for herdr's command line, and it does not start herdr's app. Run tuios instead, or run herdr --help")
 	}
@@ -128,7 +132,72 @@ func Parse(args []string, getenv Env, cwd string) (*Call, *UsageError) {
 
 // launchOptions are herdr's options for its own app and server, which the
 // front does not run.
-var launchOptions = []string{"--session", "--machine", "--remote", "--remote-keybindings", "--handoff", "--default-config", "--skill"}
+var launchOptions = []string{"--machine", "--remote", "--remote-keybindings", "--handoff", "--default-config", "--skill"}
+
+// defaultSession is the one session tuios exposes, as herdr session list
+// names it.
+const defaultSession = "default"
+
+const maxSessionName = 64
+
+// stripSessionFlag removes the global --session NAME and --session=NAME that
+// herdr takes out of its argv wherever they stand before a "--", as
+// configure_from_args does in herdr's src/session.rs. The last one wins and
+// everything from the first "--" on is left alone. tuios runs one daemon, so
+// the only session it answers for is default: any other valid name is an
+// error that names it, because the call would otherwise reach the wrong
+// session or be typed into a pane.
+func stripSessionFlag(args []string) ([]string, *UsageError) {
+	cleaned := make([]string, 0, len(args))
+	requested, asked := "", false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			cleaned = append(cleaned, args[i:]...)
+			break
+		}
+		switch {
+		case a == "--session":
+			if i+1 >= len(args) {
+				return nil, missing("--session")
+			}
+			requested, asked = args[i+1], true
+			i++
+		case strings.HasPrefix(a, "--session="):
+			requested, asked = strings.TrimPrefix(a, "--session="), true
+		default:
+			cleaned = append(cleaned, a)
+		}
+	}
+	if asked {
+		if err := checkSessionName(requested); err != nil {
+			return nil, err
+		}
+	}
+	return cleaned, nil
+}
+
+func checkSessionName(name string) *UsageError {
+	if name == defaultSession {
+		return nil
+	}
+	switch {
+	case name == "":
+		return usage("session name cannot be empty")
+	case len(name) > maxSessionName:
+		return usage("session name cannot be longer than 64 bytes")
+	case name == "." || name == "..":
+		return usage("session name cannot be . or ..")
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '_' || c == '-'
+		if !ok {
+			return usage("session name may only contain ASCII letters, numbers, '.', '_' and '-'")
+		}
+	}
+	return usage("session \"" + name + "\" not found: tuios runs one session, " + defaultSession + " (see herdr session list)")
+}
 
 // local is a command herdr runs on its own machine, which tuios answers with
 // herdr's error shape and code unsupported.
