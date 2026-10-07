@@ -1277,6 +1277,9 @@ type Session struct {
 	// loses its last pane the session goes back along it. See
 	// empty_workspace.go.
 	workspaceTrail []int
+	// herdrTabs is the workspaces the herdr front opened as tabs, guarded by
+	// stateMu. See herdr_tab_reap.go.
+	herdrTabs map[int]struct{}
 	// returnTo is, by workspace, the workspace to show first when that one
 	// loses its last pane, guarded by stateMu. tuios xpanes sets it to the
 	// workspace that ran it.
@@ -3220,6 +3223,9 @@ func (s *Session) updateStateFrom(state *SessionState, seen bool) (accepted, beh
 	s.TouchActive()
 	s.noteStateChangeLocked()
 	s.emitLifecycleLocked(before)
+	if s.herdrTabsEmptyLocked(state) {
+		s.reapHerdrTabsSoon()
+	}
 	return accepted, behind, s.changeSeq
 }
 
@@ -3283,6 +3289,7 @@ func (s *Session) mutateStateLocked(fn func(state *SessionState) error) (*Sessio
 	clearNowAtRestLocked(before, s.state)
 	s.forgetSubagentsLocked(s.state)
 	pruneDeadLeaves(s.state)
+	s.reapHerdrTabsLocked(s.state)
 	// A daemon-side mutation is exactly what a client sync must not undo, so it
 	// is what advances the version. A client that pushes a snapshot built before
 	// this point is reconciled by UpdateState rather than winning by arriving
