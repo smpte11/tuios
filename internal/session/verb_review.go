@@ -126,7 +126,8 @@ func (d *Daemon) resolveVerbPane(cs *connState, sessionName, window string) (*Se
 }
 
 // paneRepo is the repository under a pane: the session's worktree when the
-// pane is in it, else the repository holding the pane's directory. A pane on
+// pane is in it, else the repository holding the directory of the pane's
+// foreground process, or of its shell when that cannot be read. A pane on
 // another machine has its repository there, and is refused.
 func (d *Daemon) paneRepo(sess *Session, target WindowState) (reviewRepo, *verbError) {
 	if target.Host != "" {
@@ -137,7 +138,9 @@ func (d *Daemon) paneRepo(sess *Session, target WindowState) (reviewRepo, *verbE
 	}
 	cwd := target.Cwd
 	if pty := sess.GetPTY(target.PTYID); pty != nil {
-		if live, ok := pty.ProcessCwd(); ok && live != "" {
+		if fg, ok := pty.foregroundCwd(); ok && fg != "" {
+			cwd = fg
+		} else if live, ok := pty.ProcessCwd(); ok && live != "" {
 			cwd = live
 		}
 	}

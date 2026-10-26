@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -257,5 +258,39 @@ func TestReviewNotesSurviveARestart(t *testing.T) {
 	next, _ := back.add(root, "w-live", review.Note{Path: "b.go", Side: "new", Line: 1, Text: "new"})
 	if next.ID == kept.ID || next.ID == "n1" || next.ID == "n2" || next.ID == "n3" {
 		t.Errorf("an id was reused after the restart: %s", next.ID)
+	}
+}
+
+func TestReviewFindsTheRepositoryOfTheForegroundProcess(t *testing.T) {
+	repo := testutil.GitRepo(t)
+	writeIn(t, repo, "api.go", "package api\n")
+	outside := t.TempDir()
+	t.Chdir(outside)
+	d, sp := startTestDaemon(t)
+	sess, err := d.manager.CreateSession("fg", &SessionConfig{}, 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	win, err := sess.AddDaemonWindowWith(NewWindowOptions{Command: []string{"sh", "-i"}, Cwd: outside}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pane := herdrPaneID(sess.ID, win.ID)
+	herdrOK(t, "send_text", herdrDial(t, sp, "pane.send_text", map[string]any{"pane_id": pane, "text": "(cd " + repo + " && exec sleep 60)"}))
+	herdrOK(t, "send_keys", herdrDial(t, sp, "pane.send_keys", map[string]any{"pane_id": pane, "keys": []string{"Enter"}}))
+	c := dialVerb(t, sp)
+	deadline := time.Now().Add(10 * time.Second)
+	var resp map[string]any
+	for time.Now().Before(deadline) {
+		resp = callP(c, t, "review-diff", map[string]any{"session": "fg", "window": win.ID})
+		if resp["error"] == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	res := result(t, resp)
+	body, _ := json.Marshal(res)
+	if !strings.Contains(string(body), "api.go") {
+		t.Errorf("review-diff of a pane whose foreground process is in %s = %v, want api.go in it", repo, res)
 	}
 }
